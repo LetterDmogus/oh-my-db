@@ -9,7 +9,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 export default defineConfig({
   // Jika kamu host di GitHub Pages (username.github.io/repo-name/), 
   // ganti base menjadi: '/nama-repo-kamu/'
-  base: './', 
+  base: '/oh-my-db/', 
   plugins: [
     vue(),
     vueDevTools(),
