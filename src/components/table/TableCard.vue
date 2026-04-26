@@ -1,6 +1,6 @@
 <template>
   <div 
-    class="bg-white rounded-lg shadow-sm border border-gray-200 flex-shrink-0 flex flex-col h-fit overflow-visible relative transition-[width] duration-75"
+    class="bg-white rounded-lg shadow-sm border border-gray-200 w-72 flex-shrink-0 flex flex-col h-fit overflow-visible relative transition-[width] duration-75"
     :style="{ width: (table.width || 280) + 'px' }"
   >
     <!-- Resize Handle -->
@@ -26,59 +26,45 @@
       />
       
       <div class="flex items-center gap-1">
+        <!-- AI Suggestion Column Button -->
+        <button 
+            @click="handleAiSuggestColumns" 
+            :disabled="aiSuggestLoading"
+            class="text-amber-500 hover:bg-amber-50 p-1 rounded-md transition-colors cursor-pointer disabled:opacity-30" 
+            title="AI Saran Kolom Pintar"
+        >
+            <Zap v-if="!aiSuggestLoading" class="w-4 h-4" />
+            <Loader2 v-else class="w-4 h-4 animate-spin" />
+        </button>
+
         <!-- Color Picker -->
         <div class="relative">
-            <button 
-                @click.stop="showColorPicker = !showColorPicker" 
-                class="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer" 
-                :class="{ 'text-indigo-600': showColorPicker }" 
-                title="Ganti warna tabel"
-            >
+            <button @click.stop="showColorPicker = !showColorPicker" class="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer" :class="{ 'text-indigo-600': showColorPicker }" title="Ganti warna tabel">
                 <Palette class="w-4 h-4" />
             </button>
-            <div 
-                v-if="showColorPicker" 
-                v-click-outside="() => showColorPicker = false" 
-                class="absolute right-0 top-full mt-2 grid grid-cols-4 gap-2 p-2.5 bg-white border border-gray-200 shadow-2xl rounded-xl z-50 w-32 animate-in fade-in zoom-in-95 duration-100"
-            >
-                <button 
-                    v-for="(cls, color) in colorClasses" 
-                    :key="color" 
-                    @click="handleColorSelect(color)" 
-                    class="w-5 h-5 rounded-full border border-gray-200 hover:scale-110 transition-transform shadow-sm cursor-pointer" 
-                    :class="[cls.dot]" 
-                    :title="color"
-                ></button>
+            <div v-if="showColorPicker" v-click-outside="() => showColorPicker = false" class="absolute right-0 top-full mt-2 grid grid-cols-4 gap-2 p-2.5 bg-white border border-gray-200 shadow-2xl rounded-xl z-50 w-32 animate-in fade-in zoom-in-95 duration-100">
+                <button v-for="(cls, color) in colorClasses" :key="color" @click="handleColorSelect(color)" class="w-5 h-5 rounded-full border border-gray-200 hover:scale-110 transition-transform shadow-sm cursor-pointer" :class="[cls.dot]" :title="color"></button>
             </div>
         </div>
-
-        <button @click="showDataManager = true" class="text-gray-400 hover:text-indigo-600 p-1 cursor-pointer transition-colors" title="Kelola Data (Insert/Seeder)">
+        <button @click="showDataManager = true" class="text-gray-400 hover:text-indigo-600 p-1 cursor-pointer" title="Kelola Data">
           <TableIcon class="w-4 h-4" />
         </button>
-
-        <button @click="showPreview = !showPreview" class="text-gray-400 hover:text-indigo-600 p-1 cursor-pointer transition-colors" title="Intip Data (Live Preview)">
-          <Eye class="w-4 h-4" />
-        </button>
-        <button @click="$emit('remove')" class="text-gray-400 hover:text-red-600 p-1 cursor-pointer transition-colors" title="Hapus Tabel">
+        <button @click="$emit('remove')" class="text-gray-400 hover:text-red-600 p-1 cursor-pointer" title="Hapus Tabel">
           <X class="w-4 h-4" />
         </button>
       </div>
     </div>
     
-    <div v-if="showPreview" class="bg-slate-900 text-white p-3 text-[10px] font-mono animate-in fade-in slide-in-from-top-1">
-        <p class="text-indigo-300 mb-1 font-bold uppercase tracking-wider">// Contoh Data:</p>
-        <div v-for="col in table.columns" :key="col.id" class="flex justify-between border-b border-slate-800 py-1 last:border-0">
-            <span class="text-slate-400">{{ col.name }}:</span>
-            <span class="text-white">{{ generateDummyValue(col.type, col.name) }}</span>
-        </div>
-    </div>
-
-    <div class="relative overflow-visible">
+    <div class="relative overflow-visible min-h-[50px] bg-white/50" :class="{ 'ring-2 ring-indigo-200 ring-inset ring-offset-2': isDragOver }">
       <draggable
         :model-value="table.columns"
         @update:model-value="val => $emit('update-table', { columns: val })"
+        group="columns-group"
         item-key="id"
         handle=".col-drag-handle"
+        @dragover.prevent="isDragOver = true"
+        @dragleave="isDragOver = false"
+        @drop="isDragOver = false"
       >
         <template #item="{ element: column }">
           <ColumnRow
@@ -93,23 +79,15 @@
     </div>
 
     <div class="flex border-t border-gray-100 divide-x divide-gray-100">
-        <button
-          @click="$emit('add-column')"
-          class="flex-1 p-2 text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 flex items-center justify-center gap-1 transition-colors rounded-bl-lg uppercase tracking-wider cursor-pointer"
-          title="Tambah kolom baru"
-        >
+        <button @click="$emit('add-column')" class="flex-1 p-2 text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 flex items-center justify-center gap-1 uppercase tracking-wider cursor-pointer">
           <Plus class="w-3 h-3" /> Tambah Kolom
         </button>
-        <button
-          @click="$emit('add-timestamps')"
-          class="px-3 text-gray-400 hover:bg-orange-50 hover:text-orange-600 transition-colors rounded-br-lg cursor-pointer"
-          title="Tambah Laravel Timestamps"
-        >
+        <button @click="$emit('add-timestamps')" class="px-3 text-gray-400 hover:bg-orange-50 hover:text-orange-600 cursor-pointer" title="Tambah Laravel Timestamps">
           <Clock class="w-3.5 h-3.5" />
         </button>
     </div>
 
-    <!-- Data Manager Modal Improved -->
+    <!-- Data Manager Modal -->
     <BaseModal :show="showDataManager" :title="'Kelola Data: ' + table.name" @close="showDataManager = false">
         <div class="overflow-x-auto border border-gray-100 rounded-lg">
             <table class="w-full text-xs text-left border-collapse">
@@ -122,17 +100,10 @@
                 <tbody>
                     <tr v-for="(row, idx) in table.data" :key="idx" class="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
                         <td v-for="col in table.columns" :key="col.id" class="p-2">
-                            <input 
-                                v-model="row[col.name]" 
-                                class="w-full p-2 border border-transparent hover:border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded bg-white transition-all text-gray-700 cursor-text"
-                                @change="saveData"
-                                placeholder="..."
-                            />
+                            <input v-model="row[col.name]" class="w-full p-2 border border-transparent hover:border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded bg-white transition-all text-gray-700 cursor-text" @change="saveData" placeholder="..." />
                         </td>
                         <td class="p-2 text-center">
-                            <button @click="removeRow(idx)" class="text-gray-300 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-all cursor-pointer" title="Hapus baris ini">
-                                <Trash2 class="w-3.5 h-3.5" />
-                            </button>
+                            <button @click="removeRow(idx)" class="text-gray-300 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-all cursor-pointer"><Trash2 class="w-3.5 h-3.5" /></button>
                         </td>
                     </tr>
                     <tr v-if="!table.data || table.data.length === 0">
@@ -143,16 +114,19 @@
                 </tbody>
             </table>
         </div>
-        <div class="mt-6 flex justify-between items-center gap-3">
-            <BaseButton variant="outline" size="sm" @click="generateRow" class="flex-1 cursor-pointer" title="Generate data dummy otomatis berdasarkan tipe data">
-                <Sparkles class="w-3.5 h-3.5 mr-2 text-amber-500" /> Generate Dummy
+        <div class="mt-6 flex flex-wrap gap-2 items-center">
+            <BaseButton variant="outline" size="sm" @click="handleAiGenerateData" :loading="aiDataLoading" class="flex-1 cursor-pointer">
+                <Sparkles class="w-3.5 h-3.5 mr-2 text-amber-500" /> AI Realistic Data
             </BaseButton>
-            <BaseButton size="sm" @click="addRow" class="flex-1 cursor-pointer" title="Tambah baris kosong baru">
-                <Plus class="w-3.5 h-3.5 mr-2" /> Tambah Baris
+            <BaseButton variant="ghost" size="sm" @click="generateRow" class="cursor-pointer" title="Generate data dummy manual">
+                Tambah Baris Dummy
+            </BaseButton>
+            <BaseButton size="sm" @click="addRow" class="cursor-pointer">
+                <Plus class="w-3.5 h-3.5 mr-1" /> Baris Baru
             </BaseButton>
         </div>
         <template #footer>
-            <BaseButton @click="showDataManager = false" class="cursor-pointer" title="Selesai dan simpan perubahan">Tutup</BaseButton>
+            <BaseButton @click="showDataManager = false" class="cursor-pointer">Tutup</BaseButton>
         </template>
     </BaseModal>
   </div>
@@ -160,12 +134,14 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Plus, X, GripVertical, Eye, Palette, Clock, Table as TableIcon, Sparkles, Trash2 } from 'lucide-vue-next'
+import { Plus, X, GripVertical, Palette, Clock, Table as TableIcon, Sparkles, Trash2, Zap, Loader2 } from 'lucide-vue-next'
 import draggable from 'vuedraggable'
+import { v4 as uuidv4 } from 'uuid'
 import ColumnRow from './ColumnRow.vue'
 import BaseModal from '../ui/BaseModal.vue'
 import BaseButton from '../ui/BaseButton.vue'
 import { generateDummyValue } from '../../utils/typeDetector'
+import { suggestColumnsAI, generateRealisticDataAI } from '../../utils/aiService'
 import { useProjectStore } from '../../stores/useProjectStore'
 
 const props = defineProps({
@@ -175,14 +151,45 @@ const props = defineProps({
 const emit = defineEmits(['update-table', 'remove', 'add-column', 'update-column', 'remove-column', 'auto-detect', 'add-timestamps'])
 
 const store = useProjectStore()
-const showPreview = ref(false)
 const showColorPicker = ref(false)
 const showDataManager = ref(false)
+const isDragOver = ref(false)
+const aiSuggestLoading = ref(false)
+const aiDataLoading = ref(false)
 
 const tableName = computed({
   get: () => props.table.name,
   set: (val) => emit('update-table', { name: val })
 })
+
+const handleAiSuggestColumns = async () => {
+    if (!store.groqApiKey) return alert('Atur API Key dulu!')
+    aiSuggestLoading.value = true
+    try {
+        const existing = props.table.columns.map(c => c.name)
+        const suggestions = await suggestColumnsAI(props.table.name, existing, store.groqApiKey)
+        suggestions.forEach(col => {
+            store.addColumn(store.activeProjectId, props.table.id, {
+                name: col.name,
+                type: col.type,
+                notes: col.notes
+            })
+        })
+    } catch (err) { alert(err.message) }
+    finally { aiSuggestLoading.value = false }
+}
+
+const handleAiGenerateData = async () => {
+    if (!store.groqApiKey) return alert('Atur API Key dulu!')
+    aiDataLoading.value = true
+    try {
+        const cols = props.table.columns.map(c => ({ name: c.name, type: c.type, notes: c.notes }))
+        const rows = await generateRealisticDataAI(props.table.name, cols, store.groqApiKey)
+        const updatedData = [...(props.table.data || []), ...rows]
+        store.updateTableData(store.activeProjectId, props.table.id, updatedData)
+    } catch (err) { alert(err.message) }
+    finally { aiDataLoading.value = false }
+}
 
 const addRow = () => {
     const newRow = {}
@@ -225,21 +232,6 @@ const handleColorSelect = (color) => {
     showColorPicker.value = false
 }
 
-const vClickOutside = {
-  mounted(el, binding) {
-    el.clickOutsideEvent = (event) => {
-      if (!(el === event.target || el.contains(event.target))) {
-        binding.value(event);
-      }
-    };
-    document.addEventListener("click", el.clickOutsideEvent);
-  },
-  unmounted(el) {
-    document.removeEventListener("click", el.clickOutsideEvent);
-  },
-};
-
-// Resize Logic
 const isResizing = ref(false)
 const startWidth = ref(0)
 const startX = ref(0)

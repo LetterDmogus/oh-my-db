@@ -1,4 +1,4 @@
-export function generateLaravelMigration(project) {
+export function generateLaravelMigration(project, selectedTableIds = null) {
     let php = `<?php\n\n`;
     php += `use Illuminate\\Database\\Migrations\\Migration;\n`;
     php += `use Illuminate\\Database\\Schema\\Blueprint;\n`;
@@ -7,23 +7,22 @@ export function generateLaravelMigration(project) {
     php += `    /**\n     * Run the migrations.\n     */\n`;
     php += `    public function up(): void\n    {\n`;
 
-    project.tables.forEach(table => {
+    const tablesToExport = selectedTableIds 
+        ? project.tables.filter(t => selectedTableIds.includes(t.id))
+        : project.tables;
+
+    tablesToExport.forEach(table => {
         php += `        Schema::create('${table.name}', function (Blueprint $table) {\n`;
         
-        // Track columns to skip if handled by timestamps()
         const columnNames = table.columns.map(c => c.name);
         const hasTimestamps = columnNames.includes('created_at') && columnNames.includes('updated_at');
 
         table.columns.forEach(col => {
             if (hasTimestamps && (col.name === 'created_at' || col.name === 'updated_at')) return;
-
-            // Handle Primary ID
             if (col.name === 'id' && col.primary && (col.type === 'INT' || col.type === 'BIGINT')) {
                 php += `            $table->id();\n`;
                 return;
             }
-
-            // Handle Foreign Keys
             if (col.references) {
                 const targetTable = project.tables.find(t => t.id === col.references.tableId);
                 if (targetTable) {
@@ -33,11 +32,8 @@ export function generateLaravelMigration(project) {
                     return;
                 }
             }
-
-            // Map Types
             let method = 'string';
             const type = col.type.toUpperCase();
-            
             if (type.includes('INT')) method = 'integer';
             if (type.includes('BIGINT')) method = 'bigInteger';
             if (type.includes('TEXT')) method = 'text';
@@ -47,9 +43,7 @@ export function generateLaravelMigration(project) {
             if (type.includes('DATETIME')) method = 'dateTime';
             if (type.includes('TIMESTAMP')) method = 'timestamp';
             if (type.includes('JSON')) method = 'json';
-
             php += `            $table->${method}('${col.name}')`;
-            
             if (col.unique) php += '->unique()';
             if (col.nullable) php += '->nullable()';
             if (col.defaultValue && col.defaultValue !== 'CURRENT_TIMESTAMP') {
@@ -57,27 +51,18 @@ export function generateLaravelMigration(project) {
             } else if (col.defaultValue === 'CURRENT_TIMESTAMP') {
                 php += `->useCurrent()`;
             }
-
             php += ';\n';
         });
-
-        if (hasTimestamps) {
-            php += `            $table->timestamps();\n`;
-        }
-
+        if (hasTimestamps) php += `            $table->timestamps();\n`;
         php += `        });\n\n`;
     });
 
     php += `    }\n\n`;
     php += `    /**\n     * Reverse the migrations.\n     */\n`;
     php += `    public function down(): void\n    {\n`;
-    
-    // Drop in reverse order to handle foreign keys
-    [...project.tables].reverse().forEach(table => {
+    [...tablesToExport].reverse().forEach(table => {
         php += `        Schema::dropIfExists('${table.name}');\n`;
     });
-
     php += `    }\n};\n`;
-
     return php;
 }

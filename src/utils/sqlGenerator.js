@@ -1,9 +1,13 @@
-export function generateSQL(project) {
+export function generateSQL(project, selectedTableIds = null) {
   let sql = `-- SQL Generated for ${project.name}\n`;
   sql += `-- Dialect: ${project.dialect}\n`;
   sql += `-- Created At: ${new Date().toLocaleString()}\n\n`;
 
-  project.tables.forEach(table => {
+  const tablesToExport = selectedTableIds 
+    ? project.tables.filter(t => selectedTableIds.includes(t.id))
+    : project.tables;
+
+  tablesToExport.forEach(table => {
     sql += `CREATE TABLE \`${table.name}\` (\n`;
     
     const columnDefinitions = table.columns.map(column => {
@@ -38,7 +42,6 @@ export function generateSQL(project) {
     sql += allLines.join(',\n');
     sql += `\n);\n\n`;
 
-    // Add INSERT INTO statements
     if (table.data && table.data.length > 0) {
         table.data.forEach(row => {
             const keys = Object.keys(row);

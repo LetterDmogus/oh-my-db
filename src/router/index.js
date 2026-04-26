@@ -1,4 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import DashboardView from '../views/DashboardView.vue'
+import ProjectView from '../views/ProjectView.vue'
+import TemplatesView from '../views/TemplatesView.vue'
+import AboutView from '../views/AboutView.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -10,22 +14,22 @@ const router = createRouter({
     {
       path: '/dashboard',
       name: 'dashboard',
-      component: () => import('../views/DashboardView.vue'),
+      component: DashboardView,
     },
     {
       path: '/projects/:id',
       name: 'project',
-      component: () => import('../views/ProjectView.vue'),
+      component: ProjectView,
     },
     {
       path: '/templates',
       name: 'templates',
-      component: () => import('../views/TemplatesView.vue'),
+      component: TemplatesView,
     },
     {
       path: '/about',
       name: 'about',
-      component: () => import('../views/AboutView.vue'),
+      component: AboutView,
     },
   ],
 })

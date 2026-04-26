@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid'
 
 export const useProjectStore = defineStore('project', () => {
   const projects = ref(JSON.parse(localStorage.getItem('projects') || '[]'))
+  const userLibraries = ref(JSON.parse(localStorage.getItem('user_libraries') || '[]'))
+  const groqApiKey = ref(localStorage.getItem('groq_api_key') || '')
   const activeProjectId = ref(null)
   
   // Undo/Redo Stacks
@@ -16,13 +18,19 @@ export const useProjectStore = defineStore('project', () => {
 
   function saveToLocalStorage() {
     localStorage.setItem('projects', JSON.stringify(projects.value))
+    localStorage.setItem('user_libraries', JSON.stringify(userLibraries.value))
+    localStorage.setItem('groq_api_key', groqApiKey.value)
+  }
+
+  function updateApiKey(key) {
+    groqApiKey.value = key
+    saveToLocalStorage()
   }
 
   function recordHistory() {
-    // Save a snapshot of the current projects state
     history.value.push(JSON.stringify(projects.value))
-    if (history.value.length > 50) history.value.shift() // Limit to 50 steps
-    future.value = [] // Clear future when a new action is performed
+    if (history.value.length > 50) history.value.shift()
+    future.value = []
   }
 
   function undo() {
@@ -73,7 +81,7 @@ export const useProjectStore = defineStore('project', () => {
         columns: [
           { id: uuidv4(), name: 'id', type: 'INT', primary: true, nullable: false, autoIncrement: true, notes: '' }
         ],
-        data: [] // New field to store actual records
+        data: []
       })
       saveToLocalStorage()
     }
@@ -132,14 +140,12 @@ export const useProjectStore = defineStore('project', () => {
     if (project) {
       const table = project.tables.find(t => t.id === tableId)
       if (table) {
-        // If setting this column as primary, unset others in the same table
         if (updates.primary === true) {
             table.columns.forEach(c => {
                 if (c.id !== columnId) c.primary = false
             })
-            updates.nullable = false // PK must be NOT NULL
+            updates.nullable = false
         }
-
         const column = table.columns.find(c => c.id === columnId)
         if (column) {
           Object.assign(column, updates)
@@ -180,8 +186,50 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
+  function importLibrary(libraryData) {
+    if (!libData.id || !libData.blocks) return false
+    const exists = userLibraries.value.find(l => l.id === libraryData.id)
+    if (exists) {
+        if (!confirm('Library ini sudah ada. Ingin menimpanya?')) return false
+        userLibraries.value = userLibraries.value.filter(l => l.id !== libraryData.id)
+    }
+    userLibraries.value.push(libraryData)
+    saveToLocalStorage()
+    return true
+  }
+
+  function deleteLibrary(id) {
+    userLibraries.value = userLibraries.value.filter(l => l.id !== id)
+    saveToLocalStorage()
+  }
+
+  function exportProjectAsLibrary(projectId) {
+    const project = projects.value.find(p => p.id === projectId)
+    if (!project) return null
+    return {
+        id: uuidv4(),
+        name: project.name,
+        author: 'User',
+        description: `Bundle dari proyek ${project.name}`,
+        blocks: project.tables.map(t => ({
+            name: t.name,
+            description: `Tabel dari ${project.name}`,
+            color: t.color || 'gray',
+            columns: t.columns.map(c => ({
+                name: c.name,
+                type: c.type,
+                unique: c.unique,
+                nullable: c.nullable,
+                notes: c.notes
+            }))
+        }))
+    }
+  }
+
   return {
     projects,
+    userLibraries,
+    groqApiKey,
     activeProjectId,
     activeProject,
     history,
@@ -200,6 +248,10 @@ export const useProjectStore = defineStore('project', () => {
     updateProject,
     updateTableData,
     addTimestamps,
-    saveToLocalStorage
+    saveToLocalStorage,
+    importLibrary,
+    deleteLibrary,
+    exportProjectAsLibrary,
+    updateApiKey
   }
 })
