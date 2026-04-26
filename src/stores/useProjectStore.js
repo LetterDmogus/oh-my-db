@@ -1,0 +1,205 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { v4 as uuidv4 } from 'uuid'
+
+export const useProjectStore = defineStore('project', () => {
+  const projects = ref(JSON.parse(localStorage.getItem('projects') || '[]'))
+  const activeProjectId = ref(null)
+  
+  // Undo/Redo Stacks
+  const history = ref([])
+  const future = ref([])
+
+  const activeProject = computed(() => {
+    return projects.value.find(p => p.id === activeProjectId.value)
+  })
+
+  function saveToLocalStorage() {
+    localStorage.setItem('projects', JSON.stringify(projects.value))
+  }
+
+  function recordHistory() {
+    // Save a snapshot of the current projects state
+    history.value.push(JSON.stringify(projects.value))
+    if (history.value.length > 50) history.value.shift() // Limit to 50 steps
+    future.value = [] // Clear future when a new action is performed
+  }
+
+  function undo() {
+    if (history.value.length === 0) return
+    future.value.push(JSON.stringify(projects.value))
+    const previous = JSON.parse(history.value.pop())
+    projects.value = previous
+    saveToLocalStorage()
+  }
+
+  function redo() {
+    if (future.value.length === 0) return
+    history.value.push(JSON.stringify(projects.value))
+    const next = JSON.parse(future.value.pop())
+    projects.value = next
+    saveToLocalStorage()
+  }
+
+  function createProject(name, dialect = 'mysql') {
+    recordHistory()
+    const newProject = {
+      id: uuidv4(),
+      name,
+      dialect,
+      tables: [],
+      createdAt: new Date().toISOString()
+    }
+    projects.value.push(newProject)
+    saveToLocalStorage()
+    return newProject
+  }
+
+  function deleteProject(id) {
+    recordHistory()
+    projects.value = projects.value.filter(p => p.id !== id)
+    saveToLocalStorage()
+  }
+
+  function addTable(projectId, tableName) {
+    recordHistory()
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+      project.tables.push({
+        id: uuidv4(),
+        name: tableName || `table_${project.tables.length + 1}`,
+        color: 'gray',
+        width: 280,
+        columns: [
+          { id: uuidv4(), name: 'id', type: 'INT', primary: true, nullable: false, autoIncrement: true, notes: '' }
+        ],
+        data: [] // New field to store actual records
+      })
+      saveToLocalStorage()
+    }
+  }
+
+  function updateTableData(projectId, tableId, newData) {
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+      const table = project.tables.find(t => t.id === tableId)
+      if (table) {
+          table.data = newData
+          saveToLocalStorage()
+      }
+    }
+  }
+
+  function removeTable(projectId, tableId) {
+    recordHistory()
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+      project.tables = project.tables.filter(t => t.id !== tableId)
+      saveToLocalStorage()
+    }
+  }
+
+  function addColumn(projectId, tableId, columnData = {}) {
+    recordHistory()
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+      const table = project.tables.find(t => t.id === tableId)
+      if (table) {
+        table.columns.push({
+          id: uuidv4(),
+          name: columnData.name || `column_${table.columns.length + 1}`,
+          type: columnData.type || 'VARCHAR(255)',
+          primary: columnData.primary || false,
+          unique: columnData.unique || false,
+          nullable: columnData.nullable ?? true,
+          references: columnData.references || null,
+          notes: columnData.notes || '',
+          ...columnData
+        })
+        saveToLocalStorage()
+      }
+    }
+  }
+
+  function addTimestamps(projectId, tableId) {
+    recordHistory()
+    addColumn(projectId, tableId, { name: 'created_at', type: 'TIMESTAMP', nullable: true })
+    addColumn(projectId, tableId, { name: 'updated_at', type: 'TIMESTAMP', nullable: true })
+  }
+
+  function updateColumn(projectId, tableId, columnId, updates) {
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+      const table = project.tables.find(t => t.id === tableId)
+      if (table) {
+        // If setting this column as primary, unset others in the same table
+        if (updates.primary === true) {
+            table.columns.forEach(c => {
+                if (c.id !== columnId) c.primary = false
+            })
+            updates.nullable = false // PK must be NOT NULL
+        }
+
+        const column = table.columns.find(c => c.id === columnId)
+        if (column) {
+          Object.assign(column, updates)
+          saveToLocalStorage()
+        }
+      }
+    }
+  }
+
+  function removeColumn(projectId, tableId, columnId) {
+    recordHistory()
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+      const table = project.tables.find(t => t.id === tableId)
+      if (table) {
+        table.columns = table.columns.filter(c => c.id !== columnId)
+        saveToLocalStorage()
+      }
+    }
+  }
+
+  function updateTable(projectId, tableId, updates) {
+      const project = projects.value.find(p => p.id === projectId)
+      if (project) {
+        const table = project.tables.find(t => t.id === tableId)
+        if (table) {
+          Object.assign(table, updates)
+          saveToLocalStorage()
+        }
+      }
+  }
+
+  function updateProject(projectId, updates) {
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+        Object.assign(project, updates)
+        saveToLocalStorage()
+    }
+  }
+
+  return {
+    projects,
+    activeProjectId,
+    activeProject,
+    history,
+    future,
+    undo,
+    redo,
+    recordHistory,
+    createProject,
+    deleteProject,
+    addTable,
+    removeTable,
+    addColumn,
+    updateColumn,
+    removeColumn,
+    updateTable,
+    updateProject,
+    updateTableData,
+    addTimestamps,
+    saveToLocalStorage
+  }
+})
