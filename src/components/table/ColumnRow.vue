@@ -95,6 +95,17 @@
             </button>
         </div>
 
+        <!-- Default Value Input -->
+        <div class="flex items-center gap-2">
+            <div class="text-[10px] font-bold text-gray-400 w-16 uppercase">Default:</div>
+            <input 
+                :value="column.defaultValue || ''"
+                @input="e => $emit('update', { defaultValue: e.target.value })"
+                class="flex-1 text-[10px] bg-white border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-indigo-500 placeholder:italic cursor-text"
+                placeholder="NULL, 'active', 0, CURRENT_TIMESTAMP..."
+            />
+        </div>
+
         <div class="flex items-start gap-2">
             <MessageSquare class="w-3 h-3 text-gray-400 mt-1 shrink-0" />
             <textarea 
@@ -196,9 +207,19 @@ const handleNameBlur = () => {
     }
 }
 
-const commonTypes = [
-  'INT', 'BIGINT', 'VARCHAR(255)', 'TEXT', 'BOOLEAN', 'DATE', 'DATETIME', 'TIMESTAMP', 'DECIMAL(10,2)', 'JSON'
-]
+const commonTypes = computed(() => {
+    const base = [
+        'INT', 'BIGINT', 'VARCHAR(255)', 'TEXT', 'BOOLEAN', 'DATE', 'DATETIME', 'TIMESTAMP', 'DECIMAL(10,2)', 'JSON'
+    ]
+    
+    // Tambahkan Enum kustom dari project
+    if (store.activeProject?.enums) {
+        const enumTypes = store.activeProject.enums.map(en => `ENUM:${en.name.toUpperCase()}`)
+        return [...base, ...enumTypes]
+    }
+    
+    return base
+})
 
 const typeTooltips = {
   'INT': 'Angka bulat standar.',

@@ -77,6 +77,12 @@
       </div>
 
       <div class="h-6 w-px bg-gray-200 mx-1"></div>
+      <BaseButton variant="outline" size="sm" @click="$emit('add-note')" title="Tambah catatan tempel">
+        <StickyNote class="w-4 h-4 mr-2" /> Catatan
+      </BaseButton>
+      <BaseButton variant="outline" size="sm" @click="$emit('add-enum')" title="Tambah tipe data ENUM">
+        <Layers class="w-4 h-4 mr-2" /> Enum
+      </BaseButton>
       <BaseButton size="sm" @click="$emit('add-table')" title="Tambah tabel baru">
         <Plus class="w-4 h-4 mr-2" /> Tambah Tabel
       </BaseButton>
@@ -88,7 +94,7 @@
 import { ref } from 'vue'
 import { 
     ArrowLeft, Download, FileCode, Upload, Search, Undo, Redo, 
-    Image as ImageIcon, ChevronDown, Braces, Code2, Sparkles, Plus, Library as LibraryIcon
+    Image as ImageIcon, ChevronDown, Braces, Code2, Sparkles, Plus, Library as LibraryIcon, StickyNote, Layers
 } from 'lucide-vue-next'
 import { useProjectStore } from '../../stores/useProjectStore'
 import BaseButton from '../ui/BaseButton.vue'
@@ -98,7 +104,7 @@ const props = defineProps({
     searchQuery: String
 })
 
-const emit = defineEmits(['update-project', 'update:searchQuery', 'trigger-import', 'export', 'add-table'])
+const emit = defineEmits(['update-project', 'update:searchQuery', 'trigger-import', 'export', 'add-table', 'add-note', 'add-enum'])
 
 const store = useProjectStore()
 const showExportMenu = ref(false)

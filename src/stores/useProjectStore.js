@@ -56,11 +56,85 @@ export const useProjectStore = defineStore('project', () => {
       name,
       dialect,
       tables: [],
+      notes: [],
+      enums: [],
       createdAt: new Date().toISOString()
     }
     projects.value.push(newProject)
     saveToLocalStorage()
     return newProject
+  }
+
+  function addEnum(projectId) {
+    recordHistory()
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+        if (!project.enums) project.enums = []
+        project.enums.push({
+            id: uuidv4(),
+            name: `status_type_${project.enums.length + 1}`,
+            values: ['active', 'inactive'],
+            position: { x: 150, y: 150 }
+        })
+        saveToLocalStorage()
+    }
+  }
+
+  function updateEnum(projectId, enumId, updates) {
+    const project = projects.value.find(p => p.id === projectId)
+    if (project && project.enums) {
+        const en = project.enums.find(e => e.id === enumId)
+        if (en) {
+            Object.assign(en, updates)
+            saveToLocalStorage()
+        }
+    }
+  }
+
+  function removeEnum(projectId, enumId) {
+    recordHistory()
+    const project = projects.value.find(p => p.id === projectId)
+    if (project && project.enums) {
+        project.enums = project.enums.filter(e => e.id !== enumId)
+        saveToLocalStorage()
+    }
+  }
+
+  function addNote(projectId) {
+    recordHistory()
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+        if (!project.notes) project.notes = []
+        project.notes.push({
+            id: uuidv4(),
+            content: 'Catatan baru...',
+            color: 'yellow',
+            position: { x: 100, y: 100 },
+            width: 200,
+            height: 150
+        })
+        saveToLocalStorage()
+    }
+  }
+
+  function updateNote(projectId, noteId, updates) {
+    const project = projects.value.find(p => p.id === projectId)
+    if (project && project.notes) {
+        const note = project.notes.find(n => n.id === noteId)
+        if (note) {
+            Object.assign(note, updates)
+            saveToLocalStorage()
+        }
+    }
+  }
+
+  function removeNote(projectId, noteId) {
+    recordHistory()
+    const project = projects.value.find(p => p.id === projectId)
+    if (project && project.notes) {
+        project.notes = project.notes.filter(n => n.id !== noteId)
+        saveToLocalStorage()
+    }
   }
 
   function deleteProject(id) {
@@ -78,6 +152,7 @@ export const useProjectStore = defineStore('project', () => {
         name: tableName || `table_${project.tables.length + 1}`,
         color: 'gray',
         width: 280,
+        position: { x: 50 + (project.tables.length * 40), y: 50 + (project.tables.length * 40) },
         columns: [
           { id: uuidv4(), name: 'id', type: 'INT', primary: true, nullable: false, autoIncrement: true, notes: '' }
         ],
@@ -241,6 +316,12 @@ export const useProjectStore = defineStore('project', () => {
     deleteProject,
     addTable,
     removeTable,
+    addNote,
+    updateNote,
+    removeNote,
+    addEnum,
+    updateEnum,
+    removeEnum,
     addColumn,
     updateColumn,
     removeColumn,

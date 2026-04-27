@@ -26,6 +26,16 @@
       />
       
       <div class="flex items-center gap-1">
+        <!-- Pivot Suggestion Button -->
+        <button 
+            v-if="pivotSuggestion" 
+            @click="handleApplyPivot"
+            class="text-indigo-600 hover:bg-indigo-100 p-1 rounded-md transition-colors cursor-pointer animate-pulse" 
+            :title="'Ubah jadi Pivot Table antara ' + pivotSuggestion.t1.name + ' & ' + pivotSuggestion.t2.name"
+        >
+            <Sparkles class="w-4 h-4" />
+        </button>
+
         <!-- AI Suggestion Column Button -->
         <button 
             @click="handleAiSuggestColumns" 
@@ -161,6 +171,69 @@ const tableName = computed({
   get: () => props.table.name,
   set: (val) => emit('update-table', { name: val })
 })
+
+// Logic Deteksi Pivot Table
+const pivotSuggestion = computed(() => {
+    const name = props.table.name.toLowerCase()
+    if (!name.includes('_')) return null
+    
+    const parts = name.split('_')
+    if (parts.length !== 2) return null
+    
+    const [p1, p2] = parts
+    
+    // Cari tabel yang cocok di project
+    const findTable = (prefix) => {
+        return store.activeProject.tables.find(t => {
+            const tName = t.name.toLowerCase()
+            return tName === prefix || tName === prefix + 's' || tName === prefix + 'es' || tName.replace(/s$/, '') === prefix
+        })
+    }
+
+    const t1 = findTable(p1)
+    const t2 = findTable(p2)
+
+    if (t1 && t2 && t1.id !== t2.id) {
+        return { t1, t2 }
+    }
+    return null
+})
+
+const handleApplyPivot = () => {
+    if (!pivotSuggestion.value) return
+    const { t1, t2 } = pivotSuggestion.value
+    
+    if (confirm(`Ubah ${props.table.name} menjadi pivot table untuk ${t1.name} dan ${t2.name}?`)) {
+        store.recordHistory()
+        
+        // Kosongkan kolom lama (kecuali mungkin ID jika ingin tetap ada)
+        // Tapi biasanya pivot Laravel gapake ID atau pake ID. Kita biarkan ID default dan tambah FK.
+        
+        const fk1Name = `${t1.name.replace(/s$/, '').toLowerCase()}_id`
+        const fk2Name = `${t2.name.replace(/s$/, '').toLowerCase()}_id`
+        
+        // Tambahkan kolom FK pertama
+        store.addColumn(store.activeProjectId, props.table.id, {
+            name: fk1Name,
+            type: t1.columns.find(c => c.primary)?.type || 'INT',
+            references: { tableId: t1.id, columnId: t1.columns.find(c => c.primary)?.id },
+            nullable: false
+        })
+
+        // Tambahkan kolom FK kedua
+        store.addColumn(store.activeProjectId, props.table.id, {
+            name: fk2Name,
+            type: t2.columns.find(c => c.primary)?.type || 'INT',
+            references: { tableId: t2.id, columnId: t2.columns.find(c => c.primary)?.id },
+            nullable: false
+        })
+
+        // Tambahkan timestamps (opsional tapi umum di Laravel)
+        store.addTimestamps(store.activeProjectId, props.table.id)
+        
+        alert(`Berhasil! Kolom ${fk1Name} dan ${fk2Name} telah ditambahkan.`)
+    }
+}
 
 const handleAiSuggestColumns = async () => {
     if (!store.groqApiKey) return alert('Atur API Key dulu!')

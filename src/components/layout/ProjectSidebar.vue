@@ -37,7 +37,7 @@
                         v-for="set in columnSets" :key="set.name"
                         class="p-2.5 bg-indigo-50 border border-indigo-100 rounded-xl cursor-pointer hover:bg-indigo-100 transition-colors group"
                         @click="$emit('add-set', set)"
-                        title="Klik untuk tambah ke tabel pertama"
+                        title="Pilih tabel untuk menambahkan set ini"
                     >
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-[10px] font-bold text-indigo-700">{{ set.name }}</span>
