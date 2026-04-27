@@ -1,12 +1,12 @@
 {
-  "turn_count": 22,
+  "turn_count": 31,
   "last_session_id": "57dc6b4e-6373-453b-acb7-4f9098b132ec",
-  "last_event_key": "57dc6b4e-6373-453b-acb7-4f9098b132ec:transcript:876c98af8cd5077ec7d6899498196f9a5d487e82e3b6b207822ee294691e2219",
-  "last_transcript_hash": "876c98af8cd5077ec7d6899498196f9a5d487e82e3b6b207822ee294691e2219",
+  "last_event_key": "57dc6b4e-6373-453b-acb7-4f9098b132ec:transcript:9e2d739298c3a9a7f48a977d0f0d25f9fb3fab166f02fc368947d4368933c084",
+  "last_transcript_hash": "9e2d739298c3a9a7f48a977d0f0d25f9fb3fab166f02fc368947d4368933c084",
   "last_model": "gemini-3-flash-preview",
-  "last_turn_total_tokens": 112581,
-  "last_session_total_tokens": 5509013,
+  "last_turn_total_tokens": 159027,
+  "last_session_total_tokens": 11073208,
   "cwd_mode": "parent-leaf",
   "last_cwd_label": "Laravel/oh-my-db",
-  "updated_at": "2026-04-27T08:01:38.848Z"
+  "updated_at": "2026-04-27T10:48:11.089Z"
 }

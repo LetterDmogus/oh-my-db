@@ -9,6 +9,7 @@
         @add-table="store.addTable(project.id)"
         @add-note="store.addNote(project.id)"
         @add-enum="store.addEnum(project.id)"
+        @test-schema="showAuditPanel = true"
     />
 
     <div class="flex-1 flex overflow-hidden">
@@ -17,7 +18,14 @@
             @add-set="addSetToActiveTable"
         />
 
-        <main class="flex-1 overflow-auto p-8 relative bg-slate-50 select-none" id="canvas-area" @mousemove="handleGlobalMouseMove" @mouseup="handleGlobalMouseUp">
+        <main 
+            class="flex-1 overflow-auto p-8 relative bg-slate-50 select-none" 
+            id="canvas-area" 
+            @mousemove="handleGlobalMouseMove" 
+            @mouseup="handleGlobalMouseUp"
+            @dragover.prevent
+            @drop="handleCanvasDrop"
+        >
           <div v-if="project" class="relative w-[5000px] h-[5000px] origin-top-left" :style="{ transform: `scale(${zoomLevel})` }">
             <!-- SVG Layer for Relations -->
             <svg class="absolute inset-0 pointer-events-none w-full h-full">
@@ -184,6 +192,9 @@
       </template>
     </BaseModal>
 
+    <!-- Schema Auditor Health Check -->
+    <SchemaAudit v-if="project" :project="project" :show="showAuditPanel" @close="showAuditPanel = false" />
+
     <input type="file" ref="fileInput" class="hidden" accept=".json" @change="onFileSelected" />
     <input type="file" ref="libInput" class="hidden" accept=".json" @change="onLibraryImport" />
   </div>
@@ -199,6 +210,7 @@ import { useProjectStore } from '../stores/useProjectStore'
 import { generateSQL } from '../utils/sqlGenerator'
 import { generateLaravelMigration } from '../utils/laravelMigrationGenerator'
 import { generateLaravelSeeder } from '../utils/laravelSeederGenerator'
+import { generateAIContext } from '../utils/aiContextGenerator'
 import { detectType } from '../utils/typeDetector'
 
 import ProjectHeader from '../components/layout/ProjectHeader.vue'
@@ -206,6 +218,7 @@ import ProjectSidebar from '../components/layout/ProjectSidebar.vue'
 import TableCard from '../components/table/TableCard.vue'
 import NoteCard from '../components/ui/NoteCard.vue'
 import EnumCard from '../components/ui/EnumCard.vue'
+import SchemaAudit from '../components/ui/SchemaAudit.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 
@@ -225,6 +238,9 @@ const libInput = ref(null)
 const showSelectorModal = ref(false)
 const pendingExportType = ref('')
 const selectedTableIds = ref([])
+
+// Audit Panel state
+const showAuditPanel = ref(false)
 
 // Zoom State
 const zoomLevel = ref(1)
@@ -300,6 +316,24 @@ const handleGlobalMouseUp = () => {
     draggingEnumId.value = null
     saveChanges()
   }
+}
+
+const handleCanvasDrop = (e) => {
+    const type = e.dataTransfer.getData('blockType')
+    if (!type) return
+
+    const canvas = document.getElementById('canvas-area')
+    const rect = canvas.getBoundingClientRect()
+    
+    // Hitung posisi relatif terhadap canvas, sesuaikan dengan scroll dan zoom
+    const x = (e.clientX - rect.left + canvas.scrollLeft) / zoomLevel.value
+    const y = (e.clientY - rect.top + canvas.scrollTop) / zoomLevel.value
+
+    const pos = { x, y }
+
+    if (type === 'table') store.addTable(project.value.id, null, pos)
+    else if (type === 'enum') store.addEnum(project.value.id, pos)
+    else if (type === 'note') store.addNote(project.value.id, pos)
 }
 
 // Relation Lines Calculation with Precision
@@ -419,6 +453,11 @@ const executeExport = () => {
         exportModalTitle.value = 'Laravel Seeder'
         exportLang.value = 'PHP'
         currentExtension.value = 'php'
+    } else if (type === 'ai') {
+        exportedCode.value = generateAIContext(project.value)
+        exportModalTitle.value = 'AI Context (Markdown)'
+        exportLang.value = 'Markdown'
+        currentExtension.value = 'md'
     }
     showSelectorModal.value = false
     showExportModal.value = true

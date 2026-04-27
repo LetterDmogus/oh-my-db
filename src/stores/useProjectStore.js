@@ -65,7 +65,7 @@ export const useProjectStore = defineStore('project', () => {
     return newProject
   }
 
-  function addEnum(projectId) {
+  function addEnum(projectId, position = null) {
     recordHistory()
     const project = projects.value.find(p => p.id === projectId)
     if (project) {
@@ -74,7 +74,7 @@ export const useProjectStore = defineStore('project', () => {
             id: uuidv4(),
             name: `status_type_${project.enums.length + 1}`,
             values: ['active', 'inactive'],
-            position: { x: 150, y: 150 }
+            position: position || { x: 150, y: 150 }
         })
         saveToLocalStorage()
     }
@@ -100,7 +100,7 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
-  function addNote(projectId) {
+  function addNote(projectId, position = null) {
     recordHistory()
     const project = projects.value.find(p => p.id === projectId)
     if (project) {
@@ -109,7 +109,7 @@ export const useProjectStore = defineStore('project', () => {
             id: uuidv4(),
             content: 'Catatan baru...',
             color: 'yellow',
-            position: { x: 100, y: 100 },
+            position: position || { x: 100, y: 100 },
             width: 200,
             height: 150
         })
@@ -143,7 +143,7 @@ export const useProjectStore = defineStore('project', () => {
     saveToLocalStorage()
   }
 
-  function addTable(projectId, tableName) {
+  function addTable(projectId, tableName, position = null) {
     recordHistory()
     const project = projects.value.find(p => p.id === projectId)
     if (project) {
@@ -152,7 +152,7 @@ export const useProjectStore = defineStore('project', () => {
         name: tableName || `table_${project.tables.length + 1}`,
         color: 'gray',
         width: 280,
-        position: { x: 50 + (project.tables.length * 40), y: 50 + (project.tables.length * 40) },
+        position: position || { x: 50 + (project.tables.length * 40), y: 50 + (project.tables.length * 40) },
         columns: [
           { id: uuidv4(), name: 'id', type: 'INT', primary: true, nullable: false, autoIncrement: true, notes: '' }
         ],

@@ -11,6 +11,54 @@
     
     <div class="flex-1 overflow-y-auto">
         <div class="p-3 space-y-6">
+            <!-- Base Components (Drag & Drop) -->
+            <div>
+                <h3 class="text-[10px] font-bold text-gray-400 uppercase mb-3 px-1">Components</h3>
+                <div class="grid grid-cols-1 gap-2">
+                    <div 
+                        draggable="true"
+                        @dragstart="e => handleStartDragBlock(e, 'table')"
+                        class="p-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:border-indigo-300 hover:bg-white transition-all cursor-grab active:cursor-grabbing shadow-sm flex items-center gap-3 group"
+                    >
+                        <div class="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center text-gray-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                            <TableIcon class="w-4 h-4" />
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-700">New Table</p>
+                            <p class="text-[8px] text-gray-400">Drag ke canvas</p>
+                        </div>
+                    </div>
+
+                    <div 
+                        draggable="true"
+                        @dragstart="e => handleStartDragBlock(e, 'enum')"
+                        class="p-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:border-purple-300 hover:bg-white transition-all cursor-grab active:cursor-grabbing shadow-sm flex items-center gap-3 group"
+                    >
+                        <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-500 group-hover:bg-purple-200 transition-colors">
+                            <Layers class="w-4 h-4" />
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-700">New Enum</p>
+                            <p class="text-[8px] text-gray-400">Tipe data kustom</p>
+                        </div>
+                    </div>
+
+                    <div 
+                        draggable="true"
+                        @dragstart="e => handleStartDragBlock(e, 'note')"
+                        class="p-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:border-amber-300 hover:bg-white transition-all cursor-grab active:cursor-grabbing shadow-sm flex items-center gap-3 group"
+                    >
+                        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-500 group-hover:bg-amber-200 transition-colors">
+                            <StickyNote class="w-4 h-4" />
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-700">Sticky Note</p>
+                            <p class="text-[8px] text-gray-400">Dokumentasi</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Common Columns -->
             <div>
                 <h3 class="text-[10px] font-bold text-gray-400 uppercase mb-3 px-1">Common Columns</h3>
@@ -86,7 +134,7 @@
 </template>
 
 <script setup>
-import { Library as LibraryIcon, PlusSquare, PlusCircle, X } from 'lucide-vue-next'
+import { Library as LibraryIcon, PlusSquare, PlusCircle, X, Table as TableIcon, StickyNote, Layers } from 'lucide-vue-next'
 import draggable from 'vuedraggable'
 import { v4 as uuidv4 } from 'uuid'
 import { useProjectStore } from '../../stores/useProjectStore'
@@ -95,6 +143,11 @@ import { commonColumns, columnSets } from '../../data/blocks'
 const store = useProjectStore()
 
 defineEmits(['trigger-lib-import', 'add-set'])
+
+const handleStartDragBlock = (e, type) => {
+    e.dataTransfer.setData('blockType', type)
+    e.dataTransfer.effectAllowed = 'copy'
+}
 
 const cloneColumn = (col) => {
     return {
