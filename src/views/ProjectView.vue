@@ -471,10 +471,11 @@ const onFileSelected = (event) => {
   reader.onload = (e) => {
     try {
       const importedData = JSON.parse(e.target.result);
-      if (!importedData.tables || !Array.isArray(importedData.tables)) return;
-      if (confirm('Import JSON akan menimpa semua tabel yang ada saat ini. Lanjutkan?')) {
+      if (confirm('Import JSON akan menimpa semua data yang ada saat ini. Lanjutkan?')) {
           store.recordHistory()
-          project.value.tables = importedData.tables;
+          if (importedData.tables) project.value.tables = importedData.tables;
+          if (importedData.notes) project.value.notes = importedData.notes;
+          if (importedData.enums) project.value.enums = importedData.enums;
           saveChanges();
       }
     } catch (err) { alert('Gagal: ' + err.message); }
@@ -556,30 +557,45 @@ const handleAutoDetect = (tableId, colId) => {
         suggested.type = `ENUM:${enumMatch.name.toUpperCase()}`
     } 
     // 3. Deteksi Auto Foreign Key (Jika bukan Enum, cek potensi FK)
-    else if (col.name.endsWith('_id') && col.name !== 'id') {
-        const prefix = col.name.replace('_id', '').toLowerCase()
+    else if (col.name.includes('_')) {
+        const parts = col.name.split('_')
         
-        // Cari tabel yang cocok (singular atau plural)
-        const targetTable = project.value.tables.find(t => {
-            const tName = t.name.toLowerCase()
-            return tName === prefix || 
-                   tName === prefix + 's' || 
-                   tName === prefix + 'es' ||
-                   tName.replace(/s$/, '') === prefix
-        })
-        
-        if (targetTable) {
-            const targetPk = targetTable.columns.find(c => c.primary) || targetTable.columns[0]
+        // Cari kemungkinan prefix tabel (bisa satu kata atau lebih)
+        for (let i = 1; i < parts.length; i++) {
+            const tablePrefix = parts.slice(0, i).join('_')
+            const colSuffix = parts.slice(i).join('_')
             
-            // Set relasi otomatis
-            suggested.references = { 
-                tableId: targetTable.id, 
-                columnId: targetPk.id 
+            // Cari tabel yang cocok (singular, plural, -ies)
+            const targetTable = project.value.tables.find(t => {
+                const tn = t.name.toLowerCase()
+                const tp = tablePrefix.toLowerCase()
+                return tn === tp || 
+                       tn === tp + 's' || 
+                       tn === tp + 'es' ||
+                       tn.replace(/s$/, '') === tp ||
+                       (tp.endsWith('y') && tn === tp.replace(/y$/, 'ies')) ||
+                       (tn.endsWith('y') && tp === tn.replace(/y$/, 'ies'))
+            })
+
+            if (targetTable) {
+                // Cari kolom target yang cocok (biasanya 'id' atau nama suffix-nya)
+                const targetCol = targetTable.columns.find(c => {
+                    const cn = c.name.toLowerCase()
+                    const cs = colSuffix.toLowerCase()
+                    // Harus match namanya DAN bersifat PK atau Unique
+                    return (cn === cs || (cs === 'id' && c.primary)) && (c.primary || c.unique)
+                })
+
+                if (targetCol) {
+                    suggested.references = { 
+                        tableId: targetTable.id, 
+                        columnId: targetCol.id 
+                    }
+                    suggested.type = targetCol.type
+                    suggested.nullable = false
+                    break
+                }
             }
-            
-            // Samakan tipe data dengan PK target
-            suggested.type = targetPk.type
-            suggested.nullable = false
         }
     }
     

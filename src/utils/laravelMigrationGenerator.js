@@ -34,6 +34,22 @@ export function generateLaravelMigration(project, selectedTableIds = null) {
             }
             let method = 'string';
             const type = col.type.toUpperCase();
+            
+            // Handle Custom ENUM
+            if (type.startsWith('ENUM:')) {
+                const enumName = col.type.replace('ENUM:', '').toLowerCase();
+                const targetEnum = project.enums?.find(e => e.name.toLowerCase() === enumName);
+                if (targetEnum) {
+                    const values = targetEnum.values.map(v => `'${v.replace(/'/g, "''")}'`).join(', ');
+                    php += `            $table->enum('${col.name}', [${values}])`;
+                    if (col.unique) php += '->unique()';
+                    if (col.nullable) php += '->nullable()';
+                    if (col.defaultValue) php += `->default('${col.defaultValue}')`;
+                    php += ';\n';
+                    return;
+                }
+            }
+
             if (type.includes('INT')) method = 'integer';
             if (type.includes('BIGINT')) method = 'bigInteger';
             if (type.includes('TEXT')) method = 'text';

@@ -25,12 +25,12 @@
               <div class="flex items-center gap-3 mb-2">
                 <span class="text-sm font-bold text-amber-600">V0.2.0</span>
                 <span class="text-xs text-gray-400 font-medium tracking-wide">27 April 2026</span>
-                <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded uppercase tracking-widest">AI & Ecosystem Update</span>
+                <span class="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded uppercase tracking-widest">Visual ERD & Smart Update</span>
               </div>
-              <p class="text-sm font-bold text-gray-800 mb-4">The Intelligent Era</p>
+              <p class="text-sm font-bold text-gray-800 mb-4">Refinement & Flexible Canvas</p>
               <ul class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3">
-                <li v-for="feature in v020Features" :key="feature" class="text-sm text-gray-600 flex items-start gap-2">
-                  <span class="text-amber-500 mt-1 shrink-0">✨</span>
+                <li v-for="feature in v020Features" :key="feature" class="text-[13px] text-gray-500 flex items-start gap-2">
+                  <span class="text-amber-500 mt-1 shrink-0">•</span>
                   {{ feature }}
                 </li>
               </ul>
@@ -75,16 +75,16 @@
 import AppNavbar from '../components/layout/AppNavbar.vue'
 
 const v020Features = [
-  'AI Architect: Bangun skema dari teks (Llama 3.3 70B)',
-  'AI Column Suggestion: Saran kolom pintar otomatis',
-  'AI Realistic Data: Isi data dummy yang masuk akal',
-  'User Library: Buat dan simpan blok kustom sendiri',
-  'Library Bundle: Import/Export koleksi desain (.json)',
-  'Selective Export: Pilih tabel tertentu untuk diekspor',
-  'Direct Download: Simpan hasil export langsung ke file',
-  'Laravel Seeder Export: Hasilkan file Seeder PHP',
-  'Timestamp Shortcut: Tambah created_at & updated_at instan',
-  'Refactored UI: Arsitektur komponen yang lebih stabil'
+  'Visual ERD Canvas: Free-form layout dengan koordinat presisi',
+  'Smart Relation UI: Jalur relasi otomatis dengan Smart Routing',
+  'Smart Type Detection: Deteksi tipe data berbasis kamus Regex',
+  'Auto Foreign Key & Enum Link: Hubungkan relasi otomatis saat mengetik',
+  'Enum Block Type: Blok khusus untuk definisi tipe data ENUM',
+  'Sticky Note Blocks: Penambahan catatan dokumentasi pada canvas',
+  'Canvas Navigation: Fitur Zoom In, Zoom Out, dan Reset Zoom',
+  'Improved SQL Generator: Dukungan penuh untuk tipe data ENUM kustom',
+  'Advanced Plural Detection: Deteksi tabel otomatis (cth: categories -> category)',
+  'AI Integration: Saran kolom dan pengisian data dummy berbasis AI'
 ]
 
 const v010Features = [

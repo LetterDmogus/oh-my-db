@@ -11,7 +11,21 @@ export function generateSQL(project, selectedTableIds = null) {
     sql += `CREATE TABLE \`${table.name}\` (\n`;
     
     const columnDefinitions = table.columns.map(column => {
-      let def = `  \`${column.name}\` ${column.type}`;
+      let type = column.type;
+      
+      // Handle Custom ENUM Type
+      if (type.startsWith('ENUM:')) {
+          const enumName = type.replace('ENUM:', '').toLowerCase();
+          const targetEnum = project.enums?.find(e => e.name.toLowerCase() === enumName);
+          if (targetEnum) {
+              const values = targetEnum.values.map(v => `'${v.replace(/'/g, "''")}'`).join(', ');
+              type = `ENUM(${values})`;
+          } else {
+              type = 'VARCHAR(255)'; // Fallback jika enum tidak ditemukan
+          }
+      }
+
+      let def = `  \`${column.name}\` ${type}`;
       
       if (column.nullable === false || column.primary) def += ' NOT NULL';
       if (column.unique) def += ' UNIQUE';
