@@ -15,7 +15,43 @@
             />
         </div>
         <div class="h-4 w-px bg-gray-300 mx-1"></div>
-        <span class="text-[10px] text-gray-500 uppercase font-medium bg-gray-100 px-1.5 py-0.5 rounded">{{ project.dialect }}</span>
+        
+        <!-- Project Settings Quick Toggle -->
+        <div class="relative">
+            <button @click.stop="showSettings = !showSettings" class="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded-md transition-all cursor-pointer group/settings">
+                <span class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">{{ project.dialect }}</span>
+                <Settings class="w-3 h-3 text-gray-400 group-hover/settings:rotate-90 transition-transform duration-300" />
+            </button>
+
+            <div v-if="showSettings" v-click-outside="() => showSettings = false" class="absolute left-0 top-full mt-2 w-56 bg-white border border-gray-200 shadow-2xl rounded-2xl z-[100] p-4 animate-in fade-in zoom-in-95 duration-100 text-gray-700">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Database Dialect</label>
+                        <select 
+                            :value="project.dialect" 
+                            @change="e => $emit('update-project', { dialect: e.target.value })"
+                            class="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                        >
+                            <option value="mysql">MySQL</option>
+                            <option value="postgresql">PostgreSQL</option>
+                            <option value="sqlite">SQLite</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">ERD Notation</label>
+                        <select 
+                            :value="project.notation || 'crows_foot'" 
+                            @change="e => $emit('update-project', { notation: e.target.value })"
+                            class="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                        >
+                            <option value="crows_foot">Crow's Foot (Standard)</option>
+                            <option value="arrow">Simple Arrows</option>
+                            <option value="simple">Clean Lines Only</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
       </div>
 
       <div class="relative flex-1 max-w-xs ml-4">
@@ -37,6 +73,11 @@
         <button @click="store.redo()" :disabled="store.future.length === 0" class="p-1.5 rounded hover:bg-white disabled:opacity-30 cursor-pointer transition-all">
           <Redo class="w-4 h-4 text-gray-600" />
         </button>
+        <div class="w-px h-4 bg-gray-200 mx-1"></div>
+        <button @click="store.toggleDarkMode()" class="p-1.5 rounded hover:bg-white cursor-pointer transition-all" title="Toggle Dark Mode">
+          <Sun v-if="store.darkMode" class="w-4 h-4 text-amber-500" />
+          <Moon v-else class="w-4 h-4 text-gray-600" />
+        </button>
       </div>
     </div>
 
@@ -48,6 +89,11 @@
       <!-- Test Schema Button -->
       <BaseButton variant="outline" size="sm" @click="$emit('test-schema')" title="Cek kesehatan skema database">
         <Activity class="w-4 h-4 mr-2 text-indigo-500" /> Test
+      </BaseButton>
+
+      <!-- Snapshots Button -->
+      <BaseButton variant="outline" size="sm" @click="$emit('open-snapshots')" title="Kelola versi skema database">
+        <History class="w-4 h-4 mr-2 text-amber-500" /> Snapshots
       </BaseButton>
 
       <!-- Export Dropdown -->
@@ -115,7 +161,7 @@ import { ref } from 'vue'
 import { 
     ArrowLeft, Download, FileCode, Upload, Search, Undo, Redo, 
     Image as ImageIcon, ChevronDown, Braces, Code2, Sparkles, Plus, Library as LibraryIcon, 
-    StickyNote, Layers, Zap, Activity, Table as TableIcon
+    StickyNote, Layers, Zap, Activity, Table as TableIcon, Sun, Moon, History, Settings
 } from 'lucide-vue-next'
 import { useProjectStore } from '../../stores/useProjectStore'
 import BaseButton from '../ui/BaseButton.vue'
@@ -125,11 +171,12 @@ const props = defineProps({
     searchQuery: String
 })
 
-const emit = defineEmits(['update-project', 'update:searchQuery', 'trigger-import', 'export', 'add-table', 'add-note', 'add-enum', 'test-schema'])
+const emit = defineEmits(['update-project', 'update:searchQuery', 'trigger-import', 'export', 'add-table', 'add-note', 'add-enum', 'test-schema', 'open-snapshots'])
 
 const store = useProjectStore()
 const showExportMenu = ref(false)
 const showAddMenu = ref(false)
+const showSettings = ref(false)
 
 const handleExport = (type) => {
     emit('export', type)

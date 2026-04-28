@@ -56,7 +56,7 @@
                 <button v-for="(cls, color) in colorClasses" :key="color" @click="handleColorSelect(color)" class="w-5 h-5 rounded-full border border-gray-200 hover:scale-110 transition-transform shadow-sm cursor-pointer" :class="[cls.dot]" :title="color"></button>
             </div>
         </div>
-        <button @click="showDataManager = true" class="text-gray-400 hover:text-indigo-600 p-1 cursor-pointer" title="Kelola Data">
+        <button @click="$emit('manage-data')" class="text-gray-400 hover:text-indigo-600 p-1 cursor-pointer" title="Kelola Data">
           <TableIcon class="w-4 h-4" />
         </button>
         <button @click="$emit('remove')" class="text-gray-400 hover:text-red-600 p-1 cursor-pointer" title="Hapus Tabel">
@@ -96,55 +96,12 @@
           <Clock class="w-3.5 h-3.5" />
         </button>
     </div>
-
-    <!-- Data Manager Modal -->
-    <BaseModal :show="showDataManager" :title="'Kelola Data: ' + table.name" @close="showDataManager = false">
-        <div class="overflow-x-auto border border-gray-100 rounded-lg">
-            <table class="w-full text-xs text-left border-collapse">
-                <thead class="bg-gray-50 text-gray-500 uppercase font-bold tracking-wider">
-                    <tr>
-                        <th v-for="col in table.columns" :key="col.id" class="p-3 border-b border-gray-200">{{ col.name }}</th>
-                        <th class="p-3 border-b border-gray-200 w-10"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="(row, idx) in table.data" :key="idx" class="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                        <td v-for="col in table.columns" :key="col.id" class="p-2">
-                            <input v-model="row[col.name]" class="w-full p-2 border border-transparent hover:border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded bg-white transition-all text-gray-700 cursor-text" @change="saveData" placeholder="..." />
-                        </td>
-                        <td class="p-2 text-center">
-                            <button @click="removeRow(idx)" class="text-gray-300 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-all cursor-pointer"><Trash2 class="w-3.5 h-3.5" /></button>
-                        </td>
-                    </tr>
-                    <tr v-if="!table.data || table.data.length === 0">
-                        <td :colspan="table.columns.length + 1" class="p-8 text-center text-gray-400 italic">
-                            Belum ada data. Tambah baris baru untuk memulai.
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="mt-6 flex flex-wrap gap-2 items-center">
-            <BaseButton variant="outline" size="sm" @click="handleAiGenerateData" :loading="aiDataLoading" class="flex-1 cursor-pointer">
-                <Sparkles class="w-3.5 h-3.5 mr-2 text-amber-500" /> AI Realistic Data
-            </BaseButton>
-            <BaseButton variant="ghost" size="sm" @click="generateRow" class="cursor-pointer" title="Generate data dummy manual">
-                Tambah Baris Dummy
-            </BaseButton>
-            <BaseButton size="sm" @click="addRow" class="cursor-pointer">
-                <Plus class="w-3.5 h-3.5 mr-1" /> Baris Baru
-            </BaseButton>
-        </div>
-        <template #footer>
-            <BaseButton @click="showDataManager = false" class="cursor-pointer">Tutup</BaseButton>
-        </template>
-    </BaseModal>
   </div>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Plus, X, GripVertical, Palette, Clock, Table as TableIcon, Sparkles, Trash2, Zap, Loader2 } from 'lucide-vue-next'
+import { Plus, X, GripVertical, Palette, Clock, Table as TableIcon, Sparkles, Trash2, Zap, Loader2, Key } from 'lucide-vue-next'
 import draggable from 'vuedraggable'
 import { v4 as uuidv4 } from 'uuid'
 import ColumnRow from './ColumnRow.vue'
@@ -158,14 +115,12 @@ const props = defineProps({
   table: Object
 })
 
-const emit = defineEmits(['update-table', 'remove', 'add-column', 'update-column', 'remove-column', 'auto-detect', 'add-timestamps'])
+const emit = defineEmits(['update-table', 'remove', 'add-column', 'update-column', 'remove-column', 'auto-detect', 'add-timestamps', 'manage-data'])
 
 const store = useProjectStore()
 const showColorPicker = ref(false)
-const showDataManager = ref(false)
 const isDragOver = ref(false)
 const aiSuggestLoading = ref(false)
-const aiDataLoading = ref(false)
 
 const tableName = computed({
   get: () => props.table.name,

@@ -19,6 +19,23 @@
           </h2>
           
           <div class="space-y-12">
+            <!-- Version 1.0.0 -->
+            <div class="relative pl-8 border-l-2 border-indigo-600">
+              <div class="absolute -left-[9px] top-0 w-4 h-4 bg-indigo-600 rounded-full border-4 border-white shadow-sm"></div>
+              <div class="flex items-center gap-3 mb-2">
+                <span class="text-sm font-bold text-indigo-600">V1.0.0</span>
+                <span class="text-xs text-gray-400 font-medium tracking-wide">27 April 2026</span>
+                <span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase tracking-widest">Official Release (The Master Blueprint)</span>
+              </div>
+              <p class="text-sm font-bold text-gray-800 mb-4">A complete studio for database architects.</p>
+              <ul class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3">
+                <li v-for="feature in v100Features" :key="feature" class="text-[13px] text-gray-500 flex items-start gap-2">
+                  <span class="text-indigo-500 mt-1 shrink-0">•</span>
+                  {{ feature }}
+                </li>
+              </ul>
+            </div>
+
             <!-- Version 0.2.0 -->
             <div class="relative pl-8 border-l-2 border-amber-400">
               <div class="absolute -left-[9px] top-0 w-4 h-4 bg-amber-400 rounded-full border-4 border-white shadow-sm"></div>
@@ -73,6 +90,19 @@
 
 <script setup>
 import AppNavbar from '../components/layout/AppNavbar.vue'
+
+const v100Features = [
+  'Workspace Tabs: Navigasi multi-halaman ala IDE modern',
+  'Unified Table Editor: Editor data & struktur yang terintegrasi',
+  'Schema Snapshots: Catat versi skema & buat Query Migration',
+  'SQL Diff Generator: Hasilkan ALTER TABLE secara otomatis',
+  'Crow\'s Foot Notation: Standar industri visual ERD',
+  'Dark Mode: Tema gelap global untuk kenyamanan mata',
+  'Drag & Drop Components: Tambah Tabel/Enum/Note dari Sidebar',
+  'Touchpad Panning: Navigasi canvas lancar dengan 2 jari',
+  'AI Context Export: Dokumentasi skema khusus untuk LLM',
+  'ERD Settings: Kustomisasi jenis Notasi & Dialek Database'
+]
 
 const v020Features = [
   'Visual ERD Canvas: Free-form layout dengan koordinat presisi',

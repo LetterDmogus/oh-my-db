@@ -6,6 +6,7 @@ export const useProjectStore = defineStore('project', () => {
   const projects = ref(JSON.parse(localStorage.getItem('projects') || '[]'))
   const userLibraries = ref(JSON.parse(localStorage.getItem('user_libraries') || '[]'))
   const groqApiKey = ref(localStorage.getItem('groq_api_key') || '')
+  const darkMode = ref(localStorage.getItem('dark_mode') === 'true')
   const activeProjectId = ref(null)
   
   // Undo/Redo Stacks
@@ -20,6 +21,12 @@ export const useProjectStore = defineStore('project', () => {
     localStorage.setItem('projects', JSON.stringify(projects.value))
     localStorage.setItem('user_libraries', JSON.stringify(userLibraries.value))
     localStorage.setItem('groq_api_key', groqApiKey.value)
+    localStorage.setItem('dark_mode', darkMode.value)
+  }
+
+  function toggleDarkMode() {
+    darkMode.value = !darkMode.value
+    saveToLocalStorage()
   }
 
   function updateApiKey(key) {
@@ -55,14 +62,41 @@ export const useProjectStore = defineStore('project', () => {
       id: uuidv4(),
       name,
       dialect,
+      notation: 'crows_foot',
       tables: [],
       notes: [],
       enums: [],
+      snapshots: [],
       createdAt: new Date().toISOString()
     }
     projects.value.push(newProject)
     saveToLocalStorage()
     return newProject
+  }
+
+  function takeSnapshot(projectId, label = 'Auto Snapshot') {
+    const project = projects.value.find(p => p.id === projectId)
+    if (project) {
+        if (!project.snapshots) project.snapshots = []
+        project.snapshots.push({
+            id: uuidv4(),
+            label,
+            timestamp: new Date().toISOString(),
+            data: JSON.parse(JSON.stringify({ 
+                tables: project.tables, 
+                enums: project.enums 
+            }))
+        })
+        saveToLocalStorage()
+    }
+  }
+
+  function deleteSnapshot(projectId, snapshotId) {
+    const project = projects.value.find(p => p.id === projectId)
+    if (project && project.snapshots) {
+        project.snapshots = project.snapshots.filter(s => s.id !== snapshotId)
+        saveToLocalStorage()
+    }
   }
 
   function addEnum(projectId, position = null) {
@@ -305,6 +339,8 @@ export const useProjectStore = defineStore('project', () => {
     projects,
     userLibraries,
     groqApiKey,
+    darkMode,
+    toggleDarkMode,
     activeProjectId,
     activeProject,
     history,
@@ -316,6 +352,8 @@ export const useProjectStore = defineStore('project', () => {
     deleteProject,
     addTable,
     removeTable,
+    takeSnapshot,
+    deleteSnapshot,
     addNote,
     updateNote,
     removeNote,

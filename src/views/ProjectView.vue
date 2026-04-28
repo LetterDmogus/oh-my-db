@@ -10,124 +10,248 @@
         @add-note="store.addNote(project.id)"
         @add-enum="store.addEnum(project.id)"
         @test-schema="showAuditPanel = true"
+        @open-snapshots="showSnapshotModal = true"
     />
+
+    <!-- Workspace Tab Bar -->
+    <div v-if="project" class="bg-white border-b border-gray-200 flex items-center px-4 overflow-x-auto no-scrollbar shrink-0 h-10 gap-1">
+        <button 
+            v-for="tab in openTabs" :key="tab.id"
+            @click="activeTabId = tab.id"
+            class="h-full px-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer shrink-0 group"
+            :class="activeTabId === tab.id ? 'border-indigo-600 text-indigo-600 bg-indigo-50/30' : 'border-transparent text-gray-400 hover:bg-gray-50 hover:text-gray-600'"
+        >
+            <component :is="tab.type === 'diagram' ? Network : TableIcon" class="w-3.5 h-3.5" />
+            {{ tab.title }}
+            <X 
+                v-if="tab.closeable" 
+                @click.stop="closeTab(tab.id)"
+                class="w-3 h-3 hover:text-red-500 rounded-sm hover:bg-gray-200 p-0.5 opacity-0 group-hover:opacity-100 transition-all" 
+            />
+        </button>
+    </div>
 
     <div class="flex-1 flex overflow-hidden">
         <ProjectSidebar 
+            v-if="activeTabId === 'diagram'"
             @trigger-lib-import="$refs.libInput.click()"
             @add-set="addSetToActiveTable"
         />
 
-        <main 
-            class="flex-1 overflow-auto p-8 relative bg-slate-50 select-none" 
-            id="canvas-area" 
-            @mousemove="handleGlobalMouseMove" 
-            @mouseup="handleGlobalMouseUp"
-            @dragover.prevent
-            @drop="handleCanvasDrop"
-        >
-          <div v-if="project" class="relative w-[5000px] h-[5000px] origin-top-left" :style="{ transform: `scale(${zoomLevel})` }">
-            <!-- SVG Layer for Relations -->
-            <svg class="absolute inset-0 pointer-events-none w-full h-full">
-              <defs>
-                <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#6366f1" />
-                </marker>
-              </defs>
-              <g v-for="line in relationLines" :key="line.id">
-                <path 
-                  :d="line.path" 
-                  fill="none" 
-                  :stroke="line.color" 
-                  stroke-width="2" 
-                  stroke-dasharray="4"
-                  marker-end="url(#arrow)"
-                  class="transition-all duration-75"
-                />
-                <!-- Ujung Titik (Connector Dots) -->
-                <circle :cx="line.x1" :cy="line.y1" r="3" :fill="line.color" />
-                <circle :cx="line.x2" :cy="line.y2" r="3" :fill="line.color" />
-              </g>
-            </svg>
+        <main class="flex-1 overflow-hidden relative bg-slate-50 flex flex-col">
+            <!-- Diagram View (Canvas) -->
+            <div v-if="activeTabId === 'diagram'" class="flex-1 overflow-auto relative select-none" id="canvas-area" @mousemove="handleGlobalMouseMove" @mouseup="handleGlobalMouseUp" @dragover.prevent @drop="handleCanvasDrop" @wheel="handleCanvasWheel">
+                <div v-if="project" class="relative w-[5000px] h-[5000px] origin-top-left" :style="{ transform: `scale(${zoomLevel})` }">
+                    <!-- SVG Layer for Relations -->
+                    <svg class="absolute inset-0 pointer-events-none w-full h-full">
+                        <defs>
+                            <!-- Crow's Foot: One -->
+                            <marker id="one" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                <path d="M 2 0 L 2 10 M 6 0 L 6 10" stroke="context-stroke" stroke-width="2" fill="none" />
+                            </marker>
+                            <!-- Crow's Foot: Many -->
+                            <marker id="many" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                <path d="M 0 0 L 10 5 L 0 10 M 10 0 L 10 10" stroke="context-stroke" stroke-width="1.5" fill="none" />
+                            </marker>
+                            <!-- Simple Arrow -->
+                            <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                                <path d="M 0 0 L 10 5 L 0 10 Z" fill="context-stroke" />
+                            </marker>
+                        </defs>
+                        <g v-for="line in relationLines" :key="line.id">
+                            <path 
+                                :d="line.path" 
+                                fill="none" 
+                                :stroke="line.color" 
+                                stroke-width="2" 
+                                stroke-dasharray="4"
+                                :marker-start="line.isEnum || project.notation === 'simple' ? '' : (project.notation === 'arrow' ? 'url(#arrow)' : 'url(#many)')"
+                                :marker-end="line.isEnum || project.notation === 'simple' ? '' : (project.notation === 'arrow' ? 'url(#arrow)' : 'url(#one)')"
+                                class="transition-all duration-75"
+                            />
+                            <circle v-if="line.isEnum" :cx="line.x1" :cy="line.y1" r="3" :fill="line.color" />
+                            <circle v-if="line.isEnum" :cx="line.x2" :cy="line.y2" r="3" :fill="line.color" />
+                        </g>
+                    </svg>
+                    <!-- Notes Layer -->
+                    <NoteCard
+                    v-for="note in project.notes"
+                    :key="note.id"
+                    :note="note"
+                    :style="{
+                        position: 'absolute',
+                        left: (note.position?.x || 0) + 'px',
+                        top: (note.position?.y || 0) + 'px',
+                        zIndex: draggingNoteId === note.id ? 50 : 20
+                    }"
+                    @mousedown.stop="e => startDraggingNote(e, note)"
+                    @update="updates => store.updateNote(project.id, note.id, updates)"
+                    @remove="store.removeNote(project.id, note.id)"
+                    />
 
-            <!-- Notes Layer -->
-            <NoteCard
-              v-for="note in project.notes"
-              :key="note.id"
-              :note="note"
-              :style="{
-                position: 'absolute',
-                left: (note.position?.x || 0) + 'px',
-                top: (note.position?.y || 0) + 'px',
-                zIndex: draggingNoteId === note.id ? 50 : 20
-              }"
-              @mousedown.stop="e => startDraggingNote(e, note)"
-              @update="updates => store.updateNote(project.id, note.id, updates)"
-              @remove="store.removeNote(project.id, note.id)"
-            />
+                    <!-- Enums Layer -->
+                    <EnumCard
+                    v-for="en in project.enums"
+                    :key="en.id"
+                    :enum="en"
+                    :style="{
+                        position: 'absolute',
+                        left: (en.position?.x || 0) + 'px',
+                        top: (en.position?.y || 0) + 'px',
+                        zIndex: draggingEnumId === en.id ? 50 : 15
+                    }"
+                    @mousedown.stop="e => startDraggingEnum(e, en)"
+                    @update="updates => store.updateEnum(project.id, en.id, updates)"
+                    @remove="store.removeEnum(project.id, en.id)"
+                    />
 
-            <!-- Enums Layer -->
-            <EnumCard
-              v-for="en in project.enums"
-              :key="en.id"
-              :enum="en"
-              :style="{
-                position: 'absolute',
-                left: (en.position?.x || 0) + 'px',
-                top: (en.position?.y || 0) + 'px',
-                zIndex: draggingEnumId === en.id ? 50 : 15
-              }"
-              @mousedown.stop="e => startDraggingEnum(e, en)"
-              @update="updates => store.updateEnum(project.id, en.id, updates)"
-              @remove="store.removeEnum(project.id, en.id)"
-            />
-
-            <!-- Tables Layer -->
-            <TableCard
-              v-for="table in project.tables"
-              :key="table.id"
-              v-show="isTableMatch(table.name)"
-              :table="table"
-              :style="{ 
-                position: 'absolute', 
-                left: (table.position?.x || 0) + 'px', 
-                top: (table.position?.y || 0) + 'px',
-                zIndex: draggingTableId === table.id ? 50 : 10
-              }"
-              @mousedown.stop="e => startDraggingTable(e, table)"
-              @update-table="updates => store.updateTable(project.id, table.id, updates)"
-              @remove="store.removeTable(project.id, table.id)"
-              @add-column="store.addColumn(project.id, table.id)"
-              @add-timestamps="store.addTimestamps(project.id, table.id)"
-              @update-column="(colId, updates) => store.updateColumn(project.id, table.id, colId, updates)"
-              @remove-column="colId => store.removeColumn(project.id, table.id, colId)"
-              @auto-detect="colId => handleAutoDetect(table.id, colId)"
-            />
-          </div>
-          
-          <!-- Zoom Controls Floating -->
-          <div class="absolute bottom-6 right-6 flex flex-col gap-2 z-[60]">
-              <div class="bg-white border border-gray-200 shadow-xl rounded-xl p-1 flex flex-col items-center">
-                  <button @click="setZoom(zoomLevel + 0.1)" class="p-2 hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 rounded-lg transition-colors cursor-pointer" title="Zoom In">
-                      <Plus class="w-5 h-5" />
-                  </button>
-                  <div class="h-px w-6 bg-gray-100 my-1"></div>
-                  <button @click="setZoom(1)" class="text-[10px] font-bold text-gray-400 py-1 hover:text-indigo-600 cursor-pointer">
-                      {{ Math.round(zoomLevel * 100) }}%
-                  </button>
-                  <div class="h-px w-6 bg-gray-100 my-1"></div>
-                  <button @click="setZoom(zoomLevel - 0.1)" class="p-2 hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 rounded-lg transition-colors cursor-pointer" title="Zoom Out">
-                      <Minus class="w-5 h-5" />
-                  </button>
-              </div>
-          </div>
-          
-          <div v-if="project && project.tables.length === 0" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div class="text-center opacity-40">
-                <MousePointer2 class="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p class="text-gray-400 text-sm font-medium tracking-wide">Pilih "Tambah Tabel" di header.</p>
+                    <!-- Tables Layer -->
+                    <TableCard
+                    v-for="table in project.tables"
+                    :key="table.id"
+                    v-show="isTableMatch(table.name)"
+                    :table="table"
+                    :style="{ 
+                        position: 'absolute', 
+                        left: (table.position?.x || 0) + 'px', 
+                        top: (table.position?.y || 0) + 'px',
+                        zIndex: draggingTableId === table.id ? 50 : 10
+                    }"
+                    @mousedown.stop="e => startDraggingTable(e, table)"
+                    @update-table="updates => store.updateTable(project.id, table.id, updates)"
+                    @remove="store.removeTable(project.id, table.id)"
+                    @add-column="store.addColumn(project.id, table.id)"
+                    @add-timestamps="store.addTimestamps(project.id, table.id)"
+                    @update-column="(colId, updates) => store.updateColumn(project.id, table.id, colId, updates)"
+                    @remove-column="colId => store.removeColumn(project.id, table.id, colId)"
+                    @auto-detect="colId => handleAutoDetect(table.id, colId)"
+                    @manage-data="openTableTab(table)"
+                    />
+                </div>
+                
+                <!-- Zoom Controls Floating -->
+                <div class="absolute bottom-6 right-6 flex flex-col gap-2 z-[60]">
+                    <div class="bg-white border border-gray-200 shadow-xl rounded-xl p-1 flex flex-col items-center">
+                        <button @click="setZoom(zoomLevel + 0.1)" class="p-2 hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 rounded-lg transition-colors cursor-pointer" title="Zoom In">
+                            <Plus class="w-5 h-5" />
+                        </button>
+                        <div class="h-px w-6 bg-gray-100 my-1"></div>
+                        <button @click="setZoom(1)" class="text-[10px] font-bold text-gray-400 py-1 hover:text-indigo-600 cursor-pointer">
+                            {{ Math.round(zoomLevel * 100) }}%
+                        </button>
+                        <div class="h-px w-6 bg-gray-100 my-1"></div>
+                        <button @click="setZoom(zoomLevel - 0.1)" class="p-2 hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 rounded-lg transition-colors cursor-pointer" title="Zoom Out">
+                            <Minus class="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
             </div>
-          </div>
+
+            <!-- Focused Table View (Integrated Editor) -->
+            <div v-else class="flex-1 overflow-auto bg-slate-50 animate-in fade-in duration-300">
+                <div v-if="activeTable" class="p-8 max-w-7xl mx-auto space-y-8">
+                    <!-- 1. Table Header & Global Settings -->
+                    <div class="flex items-end justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-4 mb-2">
+                                <div class="p-3 bg-indigo-100 text-indigo-600 rounded-2xl">
+                                    <TableIcon class="w-6 h-6" />
+                                </div>
+                                <input 
+                                    v-model="activeTable.name" 
+                                    class="text-3xl font-black text-gray-900 bg-transparent border-0 focus:ring-0 p-0 w-full"
+                                    @change="saveChanges"
+                                    placeholder="Nama Tabel..."
+                                />
+                            </div>
+                            <div class="flex items-center gap-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-16">
+                                <span class="px-2 py-0.5 bg-gray-200 rounded text-gray-600">{{ project.dialect }}</span>
+                                <span>{{ activeTable.columns.length }} Kolom</span>
+                                <span>{{ activeTable.data?.length || 0 }} Baris Data</span>
+                            </div>
+                        </div>
+                        <BaseButton variant="ghost" size="sm" @click="closeTab(activeTabId)" class="mb-2">
+                            <X class="w-4 h-4 mr-2" /> Tutup Editor
+                        </BaseButton>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- 2. Column Structure (Left/Top) -->
+                        <div class="lg:col-span-1 space-y-4">
+                            <div class="flex items-center justify-between px-2">
+                                <h3 class="text-xs font-black text-gray-500 uppercase tracking-tighter flex items-center gap-2">
+                                    <LayoutGrid class="w-3.5 h-3.5" /> Struktur Kolom
+                                </h3>
+                                <button @click="store.addColumn(project.id, activeTable.id)" class="text-[10px] font-bold text-indigo-600 hover:underline">
+                                    + TAMBAH KOLOM
+                                </button>
+                            </div>
+                            <div class="space-y-2 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                                <div v-for="col in activeTable.columns" :key="col.id" class="p-3 bg-white border border-gray-200 rounded-xl flex items-center gap-3 group/col shadow-sm">
+                                    <div class="w-6 h-6 rounded-lg bg-gray-50 flex items-center justify-center">
+                                        <Key v-if="col.primary" class="w-3 h-3 text-yellow-500" />
+                                        <span v-else class="text-[9px] font-bold text-gray-300">{{ activeTable.columns.indexOf(col) + 1 }}</span>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <input v-model="col.name" class="w-full text-[11px] font-bold text-gray-800 bg-transparent border-0 focus:ring-0 p-0" @change="saveChanges" />
+                                        <p class="text-[9px] text-gray-400 uppercase font-bold truncate">{{ col.type }}</p>
+                                    </div>
+                                    <div class="flex gap-1 opacity-0 group-hover/col:opacity-100 transition-opacity">
+                                        <button @click="store.removeColumn(project.id, activeTable.id, col.id)" class="p-1 text-gray-300 hover:text-red-500">
+                                            <Trash2 class="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Data Editor (Right/Bottom) -->
+                        <div class="lg:col-span-2 space-y-4">
+                            <div class="flex items-center justify-between px-2">
+                                <h3 class="text-xs font-black text-gray-500 uppercase tracking-tighter flex items-center gap-2">
+                                    <Database class="w-3.5 h-3.5" /> Data Preview & Editor
+                                </h3>
+                                <div class="flex gap-2">
+                                    <button @click="handleAiGenerateInActiveTable" :disabled="aiDataLoading" class="text-[10px] font-bold text-amber-600 hover:underline disabled:opacity-50 flex items-center gap-1">
+                                        <Sparkles class="w-3 h-3" /> AI GENERATE
+                                    </button>
+                                    <span class="text-gray-300">|</span>
+                                    <button @click="addRowInActiveTable" class="text-[10px] font-bold text-indigo-600 hover:underline">
+                                        + TAMBAH BARIS
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-sm">
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-[11px] text-left border-collapse">
+                                        <thead class="bg-gray-50 text-gray-400 uppercase font-bold border-b border-gray-100">
+                                            <tr>
+                                                <th v-for="col in activeTable.columns" :key="col.id" class="p-4 whitespace-nowrap">{{ col.name }}</th>
+                                                <th class="p-4 w-10"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="(row, idx) in activeTable.data" :key="idx" class="border-b border-gray-50 hover:bg-indigo-50/20 transition-colors">
+                                                <td v-for="col in activeTable.columns" :key="col.id" class="p-2">
+                                                    <input v-model="row[col.name]" class="w-full p-2 bg-transparent border-0 focus:ring-1 focus:ring-indigo-500 rounded text-gray-700" @change="saveChanges" placeholder="..." />
+                                                </td>
+                                                <td class="p-2 text-center">
+                                                    <button @click="removeRowInActiveTable(idx)" class="text-gray-300 hover:text-red-500 p-1 rounded-md transition-all cursor-pointer"><Trash2 class="w-3.5 h-3.5" /></button>
+                                                </td>
+                                            </tr>
+                                            <tr v-if="!activeTable.data || activeTable.data.length === 0">
+                                                <td :colspan="activeTable.columns.length + 1" class="p-20 text-center text-gray-400 italic">
+                                                    Klik "Tambah Baris" untuk mengisi data simulasi.
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -192,7 +316,40 @@
       </template>
     </BaseModal>
 
-    <!-- Schema Auditor Health Check -->
+    <!-- Snapshot Manager Modal -->
+    <BaseModal :show="showSnapshotModal" title="Schema Snapshot Manager" @close="showSnapshotModal = false" size="lg">
+        <div class="space-y-6">
+            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex gap-4 items-end text-gray-700">
+                <div class="flex-1">
+                    <label class="block text-[10px] font-bold text-indigo-600 uppercase mb-1 ml-1">Label Snapshot</label>
+                    <input v-model="snapshotLabel" class="w-full bg-white border border-indigo-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Misal: Sebelum hapus tabel users..." />
+                </div>
+                <BaseButton @click="handleTakeSnapshot">Ambil Snapshot</BaseButton>
+            </div>
+
+            <div class="space-y-2 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                <div v-if="!project.snapshots || project.snapshots.length === 0" class="py-12 text-center text-gray-400 italic text-sm">
+                    Belum ada snapshot. Ambil snapshot untuk mencatat versi skema saat ini.
+                </div>
+                <div v-for="s in [...(project.snapshots || [])].reverse()" :key="s.id" class="p-4 bg-white border border-gray-200 rounded-2xl flex items-center justify-between group hover:border-indigo-300 transition-all shadow-sm">
+                    <div>
+                        <p class="text-sm font-bold text-gray-800">{{ s.label }}</p>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">{{ new Date(s.timestamp).toLocaleString() }}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <BaseButton variant="outline" size="sm" @click="handleGenerateDiff(s)" title="Bandingkan dengan skema saat ini">
+                            <Zap class="w-3.5 h-3.5 mr-1.5 text-purple-500" /> Generate Diff
+                        </BaseButton>
+                        <button @click="store.deleteSnapshot(project.id, s.id)" class="p-2 text-gray-300 hover:text-red-500 transition-colors cursor-pointer">
+                            <Trash2 class="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </BaseModal>
+
+    <!-- Schema Auditor Results Panel -->
     <SchemaAudit v-if="project" :project="project" :show="showAuditPanel" @close="showAuditPanel = false" />
 
     <input type="file" ref="fileInput" class="hidden" accept=".json" @change="onFileSelected" />
@@ -203,7 +360,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { MousePointer2, Download, Copy, Plus, Minus } from 'lucide-vue-next'
+import { MousePointer2, Download, Copy, Plus, Minus, X, Table as TableIcon, Network, Trash2, Sparkles, Key, LayoutGrid, Database, Zap } from 'lucide-vue-next'
 import * as htmlToImage from 'html-to-image'
 import { v4 as uuidv4 } from 'uuid'
 import { useProjectStore } from '../stores/useProjectStore'
@@ -211,7 +368,9 @@ import { generateSQL } from '../utils/sqlGenerator'
 import { generateLaravelMigration } from '../utils/laravelMigrationGenerator'
 import { generateLaravelSeeder } from '../utils/laravelSeederGenerator'
 import { generateAIContext } from '../utils/aiContextGenerator'
+import { generateSQLDiff } from '../utils/sqlDiffGenerator'
 import { detectType } from '../utils/typeDetector'
+import { suggestColumnsAI, generateRealisticDataAI } from '../utils/aiService'
 
 import ProjectHeader from '../components/layout/ProjectHeader.vue'
 import ProjectSidebar from '../components/layout/ProjectSidebar.vue'
@@ -239,8 +398,93 @@ const showSelectorModal = ref(false)
 const pendingExportType = ref('')
 const selectedTableIds = ref([])
 
+// Workspace Tabs Logic
+const openTabs = ref([
+    { id: 'diagram', title: 'Diagram Schema', type: 'diagram', closeable: false }
+])
+const activeTabId = ref('diagram')
+const focusedTab = ref('data') // sub-tab di dalam editor tabel
+const aiDataLoading = ref(false)
+
+const activeTable = computed(() => {
+    if (activeTabId.value === 'diagram') return null
+    return project.value?.tables.find(t => t.id === activeTabId.value)
+})
+
+const openTableTab = (table) => {
+    const existing = openTabs.value.find(t => t.id === table.id)
+    if (!existing) {
+        openTabs.value.push({
+            id: table.id,
+            title: table.name,
+            type: 'table',
+            closeable: true
+        })
+    }
+    activeTabId.value = table.id
+}
+
+const closeTab = (id) => {
+    openTabs.value = openTabs.value.filter(t => t.id !== id)
+    if (activeTabId.value === id) {
+        activeTabId.value = 'diagram'
+    }
+}
+
+// Logic untuk editor tabel di dalam tab
+const removeRowInActiveTable = (idx) => {
+    const table = activeTable.value
+    if (table) {
+        const newData = table.data.filter((_, i) => i !== idx)
+        store.updateTableData(project.value.id, table.id, newData)
+    }
+}
+
+const addRowInActiveTable = () => {
+    const table = activeTable.value
+    if (table) {
+        const newRow = {}
+        table.columns.forEach(c => newRow[c.name] = '')
+        const updatedData = [...(table.data || []), newRow]
+        store.updateTableData(project.value.id, table.id, updatedData)
+    }
+}
+
+const handleAiGenerateInActiveTable = async () => {
+    const table = activeTable.value
+    if (!table || !store.groqApiKey) return alert('Atur API Key dulu!')
+    aiDataLoading.value = true
+    try {
+        const cols = table.columns.map(c => ({ name: c.name, type: c.type, notes: c.notes }))
+        const rows = await generateRealisticDataAI(table.name, cols, store.groqApiKey)
+        const updatedData = [...(table.data || []), ...rows]
+        store.updateTableData(project.value.id, table.id, updatedData)
+    } catch (err) { alert(err.message) }
+    finally { aiDataLoading.value = false }
+}
+
 // Audit Panel state
 const showAuditPanel = ref(false)
+
+// Snapshot Manager State
+const showSnapshotModal = ref(false)
+const snapshotLabel = ref('')
+
+const handleTakeSnapshot = () => {
+    const label = snapshotLabel.value || `Snapshot ${new Date().toLocaleString()}`
+    store.takeSnapshot(project.value.id, label)
+    snapshotLabel.value = ''
+}
+
+const handleGenerateDiff = (snapshot) => {
+    const diffSql = generateSQLDiff(project.value, snapshot)
+    exportedCode.value = diffSql
+    exportModalTitle.value = `Migration Diff: ${snapshot.label}`
+    exportLang.value = 'SQL'
+    currentExtension.value = 'sql'
+    showSnapshotModal.value = false
+    showExportModal.value = true
+}
 
 // Zoom State
 const zoomLevel = ref(1)
@@ -336,6 +580,22 @@ const handleCanvasDrop = (e) => {
     else if (type === 'note') store.addNote(project.value.id, pos)
 }
 
+const handleCanvasWheel = (e) => {
+    if (e.ctrlKey) {
+        // Zoom dengan Ctrl + Scroll
+        e.preventDefault()
+        const delta = e.deltaY > 0 ? -0.1 : 0.1
+        setZoom(zoomLevel.value + delta)
+    } else {
+        // Panning 2 jari (Touchpad)
+        const canvas = document.getElementById('canvas-area')
+        if (canvas) {
+            canvas.scrollLeft += e.deltaX
+            canvas.scrollTop += e.deltaY
+        }
+    }
+}
+
 // Relation Lines Calculation with Precision
 const relationLines = computed(() => {
     if (!project.value) return []
@@ -405,7 +665,7 @@ const calculateLinePath = (source, target, sColIdx, tRowIdx, color, headerH, col
     
     const path = `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2}`
     
-    return { path, x1, y1, x2, y2, color }
+    return { path, x1, y1, x2, y2, color, isEnum: targetIsEnum }
 }
 
 onMounted(() => {
